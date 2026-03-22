@@ -8,7 +8,11 @@ wheels/
 
 # Virtual environments
 .venv
-.env
+.env*
+
+# Generated projects
+generated_project/
+pre_generated_project_calculator/
 
 # Jupyter Notebook checkpoints
 .ipynb_checkpoints/

@@ -1,41 +1,33 @@
 # 🛠️ Coder Buddy
 
-**Coder Buddy** is an AI-powered coding assistant built with [LangGraph](https://github.com/langchain-ai/langgraph).  
-It works like a multi-agent development team that can take a natural language request and transform it into a complete, working project — file by file — using real developer workflows.
-
----
-
-## 🏗️ Architecture
-
-- **Planner Agent** – Analyzes your request and generates a detailed project plan.
-- **Architect Agent** – Breaks down the plan into specific engineering tasks with explicit context for each file.
-- **Coder Agent** – Implements each task, writes directly into files, and uses available tools like a real developer.
-
-<div style="text-align: center;">
-    <img src="resources/coder_buddy_diagram.png" alt="Coder Agent Architecture" width="90%"/>
-</div>
+**Coder Buddy** is an AI-powered coding assistant built using **LangGraph**. It acts as a multi-agent development team (Planner, Architect, and Coder) to transform your natural language requests into complete, working projects.
 
 ---
 
 ## 🚀 Getting Started
+
 ### Prerequisites
-- Make sure you have uv installed, follow the instructions [here](https://docs.astral.sh/uv/getting-started/installation/) to install it.
-- Ensure that you have created a groq account and have your API key ready. Create an API key [here](https://console.groq.com/keys).
+1. **uv**: Install `uv` following the [Astral documentation](https://docs.astral.sh/uv/getting-started/installation/).
+2. **Groq API Key**: Get a free API key from the [Groq console](https://console.groq.com/keys).
 
-### ⚙️ **Instsllstion and Startup**
-- Create a virtual environment using: `uv venv` and activate it using `source .venv/bin/activate`
-- Install the dependencies using: `uv pip install -r pyproject.toml`
-- Create a `.env` file and add the variables and their respective values mentioned in the `.sample_env` file
+### Installation & Setup
+1. Clone the repository and navigate to the project directory.
+2. Install the dependencies using `uv sync`.
+3. Create a `.env` file in the root directory and add your Groq API key:
+   ```env
+   GROQ_API_KEY=your_actual_api_key_here
+   ```
 
-Now that we are done with all the set-up & installation steps we can start the application using the following command:
-  ```bash
-    python main.py
-  ```
+### Running the App
+Start the interactive application by running:
+```bash
+uv run python main.py
+```
 
 ### 🧪 Example Prompts
-- Create a to-do list application using html, css, and javascript.
+- Create a to-do list application using HTML, CSS, and JS.
 - Create a simple calculator web application.
-- Create a simple blog API in FastAPI with a SQLite database.
+- Create a basic blog API in FastAPI with a SQLite database.
 
 ---
 Copyright©️ Codebasics Inc. All rights reserved.

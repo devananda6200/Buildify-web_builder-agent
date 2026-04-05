@@ -103,13 +103,18 @@ def search_files(query: str, path: str = ".", max_results: int = 20) -> str:
     return "\n".join(files) if files else "No matching files found."
 
 @tool
-def run_cmd(cmd: Union[str, list], cwd: str | None = None, timeout: int = 30) -> Tuple[int, str, str]:
+def run_cmd(cmd: Union[str, list], cwd: str | None = None, timeout: Union[int, str] = 30) -> Tuple[int, str, str]:
     """Runs a shell command in the specified directory and returns the result."""
     if isinstance(cmd, list):
         cmd = " ".join(str(c) for c in cmd)
         
     cwd_dir = safe_path_for_project(cwd) if cwd else PROJECT_ROOT
-    res = subprocess.run(cmd, shell=True, cwd=str(cwd_dir), capture_output=True, text=True, timeout=timeout)
+    try:
+        timeout_val = int(timeout)
+    except (ValueError, TypeError):
+        timeout_val = 30
+        
+    res = subprocess.run(cmd, shell=True, cwd=str(cwd_dir), capture_output=True, text=True, timeout=timeout_val)
     return res.returncode, res.stdout, res.stderr
 
 

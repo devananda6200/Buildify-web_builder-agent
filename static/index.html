@@ -331,8 +331,13 @@
 
                 if (data.node === 'END') {
                     progressFill.style.width = '100%';
-                    createLogEntry('Finished', 'Agent has completed all tasks successfully! 🎉', 'END');
+                    createLogEntry('Finished', 'Agent has completed all tasks successfully! 🎉 Opening preview...', 'END');
                     finishUI(eventSource);
+                    
+                    // Automatically open the generated project preview in a new tab
+                    setTimeout(() => {
+                        window.open("/preview", "_blank");
+                    }, 1000);
                 } else if (data.node === 'ERROR') {
                     createLogEntry('Error', data.error, 'ERROR');
                     finishUI(eventSource);

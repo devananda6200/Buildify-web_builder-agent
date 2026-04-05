@@ -33,14 +33,18 @@ INITIAL_BACKOFF = 4  # seconds
 
 # Best combo found through testing:
 #  - planner_llm: Llama 3.3 70B + json_schema → reliable structured output
-#  - coder_llm:   GPT-OSS 120B → only model with reliable tool calling on Groq free tier
-#                  max_retries=5 so the SDK auto-retries 429s inside react agent loops
+#  - coder_llm:   GPT-OSS 120B → best tool calling on Groq free tier (200K TPD)
+#  - fallback:    Llama 3.3 70B → separate 100K TPD pool, used when primary is exhausted
 planner_llm = ChatGroq(
     model="llama-3.3-70b-versatile",
     max_retries=5,
 )
-coder_llm = ChatGroq(
+coder_llm_primary = ChatGroq(
     model="openai/gpt-oss-120b",
+    max_retries=5,
+)
+coder_llm_fallback = ChatGroq(
+    model="llama-3.3-70b-versatile",
     max_retries=5,
 )
 
@@ -54,10 +58,14 @@ def invoke_with_retry(fn, *args, **kwargs):
         except Exception as e:
             err_str = str(e).lower()
             is_rate_limit = "429" in err_str or "rate_limit" in err_str or "rate limit" in err_str
-            if is_rate_limit and attempt < MAX_RETRIES:
+            is_tool_error = "tool_use_failed" in err_str
+            
+            is_retryable = is_rate_limit or is_tool_error
+            
+            if is_retryable and attempt < MAX_RETRIES:
                 wait = INITIAL_BACKOFF * (2 ** (attempt - 1))  # 6, 12, 24, 48…
                 logger.warning(
-                    f"Rate-limited (attempt {attempt}/{MAX_RETRIES}). "
+                    f"{'Rate-limited' if is_rate_limit else 'Tool use failed'} (attempt {attempt}/{MAX_RETRIES}). "
                     f"Waiting {wait}s before retry…"
                 )
                 time.sleep(wait)
@@ -100,7 +108,7 @@ def architect_agent(state: dict) -> dict:
 
 
 def coder_agent(state: dict) -> dict:
-    """LangGraph tool-using coder agent with rate-limit resilience."""
+    """LangGraph tool-using coder agent with rate-limit resilience and model fallback."""
     coder_state: CoderState = state.get("coder_state")
     if coder_state is None:
         coder_state = CoderState(task_plan=state["task_plan"], current_step_idx=0)
@@ -131,17 +139,36 @@ def coder_agent(state: dict) -> dict:
     coder_tools = [read_file, write_file, edit_file, list_files, list_file,
                    get_current_directory, run_cmd, search_files]
 
-    # Build a fresh react agent for each step
-    react_agent = create_react_agent(coder_llm, coder_tools)
+    # Try primary model first, fall back if daily limit (TPD) is exhausted
+    for model_name, llm in [("GPT-OSS-120B", coder_llm_primary),
+                             ("Llama-3.3-70B", coder_llm_fallback)]:
+        try:
+            if model_name == "GPT-OSS-120B":
+                react_agent = create_react_agent(llm, coder_tools)
+                invoke_with_retry(
+                    react_agent.invoke,
+                    {"messages": [{"role": "system", "content": system_prompt},
+                                  {"role": "user", "content": user_prompt}]},
+                )
+            else:
+                # Direct JSON structured output bypasses unstable tool loop for Llama
+                fallback_prompt = user_prompt + "\n\nReturn the complete updated code for the file in the JSON response."
+                resp = invoke_with_retry(
+                    llm.with_structured_output(FileContent, method="json_schema").invoke,
+                    [{"role": "system", "content": "You are a senior coder. Return the raw source code without markdown wrappers."}, 
+                     {"role": "user", "content": fallback_prompt}]
+                )
+                write_file.invoke({"path": current_task.filepath, "content": resp.content})
 
-    # Retry the whole coder step on rate-limit
-    invoke_with_retry(
-        react_agent.invoke,
-        {"messages": [{"role": "system", "content": system_prompt},
-                      {"role": "user", "content": user_prompt}]},
-    )
-
-    logger.info(f"✅ Coder [{step_num}/{total}] – {current_task.filepath} done")
+            logger.info(f"✅ Coder [{step_num}/{total}] – {current_task.filepath} done (via {model_name})")
+            break  # success
+        except Exception as e:
+            err_str = str(e).lower()
+            is_daily_limit = "tokens per day" in err_str or "tpd" in err_str
+            if is_daily_limit and model_name == "GPT-OSS-120B":
+                logger.warning(f"⚠️ {model_name} daily limit hit, switching to JSON fallback via {coder_llm_fallback.model_name}…")
+                continue  # try fallback
+            raise  # non-recoverable error
 
     # Brief cooldown between steps to stay under TPM
     if step_num < total:

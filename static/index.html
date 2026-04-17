@@ -260,6 +260,17 @@
         </div>
         <div class="progress-label" id="progressLabel"></div>
 
+        <div id="finishActions" style="display: none; justify-content: center; gap: 1rem; margin-top: 1rem;">
+            <a id="previewLink" href="/preview" target="_blank" style="text-decoration: none;">
+                <button style="background: linear-gradient(135deg, #10b981, #059669); box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);">
+                    View Generated Project 🚀
+                </button>
+            </a>
+            <button id="restartBtn" onclick="location.reload()" style="background: rgba(255,255,255,0.1); border: 1px solid var(--border-color); box-shadow: none;">
+                Build Another
+            </button>
+        </div>
+
         <div class="logs-panel" id="logsPanel">
             <!-- Logs will be populated here -->
         </div>
@@ -273,6 +284,9 @@
         const progressBar = document.getElementById('progressBar');
         const progressFill = document.getElementById('progressFill');
         const progressLabel = document.getElementById('progressLabel');
+
+        const finishActions = document.getElementById('finishActions');
+        const previewLink = document.getElementById('previewLink');
 
         const NODE_ICONS = {
             planner: '🗺️',
@@ -331,13 +345,11 @@
 
                 if (data.node === 'END') {
                     progressFill.style.width = '100%';
-                    createLogEntry('Finished', 'Agent has completed all tasks successfully! 🎉 Opening preview...', 'END');
+                    createLogEntry('Finished', 'Agent has completed all tasks successfully! 🎉', 'END');
                     finishUI(eventSource);
                     
-                    // Automatically open the generated project preview in a new tab
-                    setTimeout(() => {
-                        window.open("/preview", "_blank");
-                    }, 1000);
+                    // Show completion actions
+                    finishActions.style.display = 'flex';
                 } else if (data.node === 'ERROR') {
                     createLogEntry('Error', data.error, 'ERROR');
                     finishUI(eventSource);
